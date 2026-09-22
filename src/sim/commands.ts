@@ -19,6 +19,11 @@ export type Command =
       roadType: number;
       from: TileCoord;
       to: TileCoord;
+      /**
+       * For drags that aren't axis-aligned, the road runs along x first and then z (true),
+       * or z first and then x (false). Defaults to x first.
+       */
+      xFirst?: boolean;
     }
   | {
       /** Clears everything bulldozable in the rectangle spanned by `from` and `to`. */

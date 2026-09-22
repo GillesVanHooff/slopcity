@@ -3,7 +3,8 @@
  * patterns selected by the `aSurface` vertex attribute (see ROAD_SURFACE):
  *
  *  - Sidewalk: long concrete slabs across the full sidewalk width, separated by thin
- *    grooves (American style), with a slight tone variation per slab.
+ *    grooves (American style), with a slight tone variation per slab. On curved
+ *    sidewalks the grooves are radial, pointing at the tile corner the curve bends around.
  *  - Verge: mottled grass from two octaves of value noise.
  *
  * Patterns are computed from world position, so they line up seamlessly across tiles,
@@ -11,7 +12,7 @@
  */
 
 import { MeshLambertMaterial } from 'three';
-import { ROAD_SURFACE } from './roadGeometry';
+import { ROAD_ARC_SLABS, ROAD_SURFACE } from './roadGeometry';
 
 /** Slab length along the sidewalk in tile units (8 slabs per tile ≈ 2 m each). */
 const SLAB_LENGTH = 0.125;
@@ -72,11 +73,28 @@ export function createRoadMaterial(opts: RoadMaterialOptions = {}): MeshLambertM
         /* glsl */ `#include <color_fragment>
         if (vSurface > 0.5) {
           vec2 p = vRoadWorld.xz;
-          if (vSurface < ${(ROAD_SURFACE.Verge - 0.5).toFixed(1)}) {
+          if (vSurface < ${(ROAD_SURFACE.Verge - 0.5).toFixed(1)} ||
+              vSurface > ${(ROAD_SURFACE.Verge + 0.5).toFixed(1)}) {
             // Sidewalk slabs. 'along' runs with the sidewalk, 'across' spans its width.
-            bool alongX = vSurface < ${(ROAD_SURFACE.SidewalkAlongZ - 0.5).toFixed(1)};
-            float along = (alongX ? p.x : p.y) / ${SLAB_LENGTH.toFixed(4)};
-            float across = alongX ? p.y : p.x;
+            float along;
+            float across;
+            if (vSurface < ${(ROAD_SURFACE.Verge - 0.5).toFixed(1)}) {
+              bool alongX = vSurface < ${(ROAD_SURFACE.SidewalkAlongZ - 0.5).toFixed(1)};
+              along = (alongX ? p.x : p.y) / ${SLAB_LENGTH.toFixed(4)};
+              across = alongX ? p.y : p.x;
+            } else {
+              // Curved sidewalk: polar coordinates around the tile corner it bends around.
+              float id = floor(vSurface + 0.5);
+              bool pad = id > ${(ROAD_SURFACE.SidewalkPad - 0.5).toFixed(1)};
+              float corner = id - (pad ? ${ROAD_SURFACE.SidewalkPad.toFixed(1)} : ${ROAD_SURFACE.SidewalkArc.toFixed(1)});
+              vec2 center = floor(p) + vec2(
+                corner > 0.5 && corner < 2.5 ? 1.0 : 0.0,
+                corner > 1.5 ? 1.0 : 0.0);
+              vec2 d = abs(p - center);
+              float slabs = pad ? ${ROAD_ARC_SLABS.pad.toFixed(1)} : ${ROAD_ARC_SLABS.arc.toFixed(1)};
+              along = atan(d.y, d.x) * slabs / ${(Math.PI / 2).toFixed(6)};
+              across = length(d);
+            }
             float fw = max(fwidth(along), 1e-5);
             // Distance to the nearest groove in pixels; ~1.5 px wide anti-aliased line.
             float px = abs(fract(along + 0.5) - 0.5) / fw;
@@ -97,6 +115,6 @@ export function createRoadMaterial(opts: RoadMaterialOptions = {}): MeshLambertM
         }`,
       );
   };
-  material.customProgramCacheKey = () => 'slopcity-road-v1';
+  material.customProgramCacheKey = () => 'slopcity-road-v2';
   return material;
 }

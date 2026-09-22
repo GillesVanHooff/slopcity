@@ -53,6 +53,53 @@ describe('Simulation: buildRoad', () => {
     expect(m(9, 10)).toBe(E | W);
   });
 
+  it('builds an L-shaped road whose bend is a corner piece', () => {
+    const { world, sim } = makeSim();
+    const m = (x: number, z: number) => world.roadMask[world.grid.index(x, z)];
+    const res = sim.execute({
+      type: 'buildRoad',
+      roadType: STREET,
+      from: { x: 2, z: 2 },
+      to: { x: 5, z: 6 },
+      xFirst: true,
+    });
+    expect(res.tilesChanged).toBe(4 + 4);
+    expect(m(2, 2)).toBe(E);
+    expect(m(5, 2)).toBe(W | S);
+    expect(m(5, 4)).toBe(N | S);
+    expect(m(5, 6)).toBe(N);
+    expect(world.road[world.grid.index(2, 6)]).toBe(0);
+
+    const zFirst = sim.execute({
+      type: 'buildRoad',
+      roadType: STREET,
+      from: { x: 10, z: 2 },
+      to: { x: 13, z: 6 },
+      xFirst: false,
+    });
+    expect(zFirst.tilesChanged).toBe(8);
+    expect(m(10, 6)).toBe(N | E);
+  });
+
+  it('turns existing roads into T-junctions where an L-drag branches off', () => {
+    const { world, sim } = makeSim();
+    const m = (x: number, z: number) => world.roadMask[world.grid.index(x, z)];
+    build(sim, 0, 5, 10, 5);
+    // Starts on the existing road, runs along it, then turns south.
+    const res = sim.execute({
+      type: 'buildRoad',
+      roadType: STREET,
+      from: { x: 2, z: 5 },
+      to: { x: 12, z: 8 },
+      xFirst: true,
+    });
+    expect(res.tilesChanged).toBe(2 + 3);
+    expect(m(10, 5)).toBe(E | W);
+    expect(m(12, 5)).toBe(W | S);
+    build(sim, 4, 5, 4, 8);
+    expect(m(4, 5)).toBe(E | S | W);
+  });
+
   it('only charges for new tiles and reports no change when nothing is new', () => {
     const { sim } = makeSim();
     build(sim, 0, 0, 9, 0);

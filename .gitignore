@@ -12,3 +12,4 @@ coverage/
 # Local agent/planning docs
 CLAUDE.md
 plan.md
+HANDOVER.md

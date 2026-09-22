@@ -9,7 +9,7 @@ import { Emitter } from '../core/events';
 import { ChangeSetBuilder, type ChangeSet } from './changes';
 import type { Command, CommandResult } from './commands';
 import { updateRoadMasks } from './roads/autotile';
-import { planStraightRoad } from './roads/roadPath';
+import { planRoad } from './roads/roadPath';
 import type { World } from './world';
 
 export interface SimEvents {
@@ -58,12 +58,13 @@ export class Simulation {
       return { ok: false, reason: `Unknown road type ${cmd.roadType}`, tilesChanged: 0, cost: 0 };
     }
     const { world } = this;
-    const path = planStraightRoad(
+    const path = planRoad(
       world.grid,
       cmd.from.x,
       cmd.from.z,
       cmd.to.x,
       cmd.to.z,
+      cmd.xFirst ?? true,
       this.scratchPath,
     );
     const placed: number[] = [];

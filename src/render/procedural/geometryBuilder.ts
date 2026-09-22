@@ -80,6 +80,39 @@ export class GeometryBuilder {
     this.tri(x1, y0, z0, x1, y1, z1, x1, y0, z1, 1, 0, 0, color);
   }
 
+  /** Horizontal triangle at height `y`, facing up whatever the order of its corners. */
+  triUp(
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+    cx: number,
+    cz: number,
+    y: number,
+    color: Color,
+    surface = 0,
+  ): void {
+    // Seen from above (+y), counter-clockwise means (b - a) × (c - a) has a positive y.
+    const cross = (bz - az) * (cx - ax) - (bx - ax) * (cz - az);
+    if (cross >= 0) this.tri(ax, y, az, bx, y, bz, cx, y, cz, 0, 1, 0, color, surface);
+    else this.tri(ax, y, az, cx, y, cz, bx, y, bz, 0, 1, 0, color, surface);
+  }
+
+  /**
+   * Vertical quad from y0 to y1 along the segment a → b, facing the left-hand side of the
+   * segment seen from above (walking east, it faces north).
+   */
+  wall(ax: number, az: number, bx: number, bz: number, y0: number, y1: number, color: Color): void {
+    const dx = bx - ax;
+    const dz = bz - az;
+    const len = Math.hypot(dx, dz);
+    if (len === 0) return;
+    const nx = dz / len;
+    const nz = -dx / len;
+    this.tri(ax, y0, az, ax, y1, az, bx, y1, bz, nx, 0, nz, color);
+    this.tri(ax, y0, az, bx, y1, bz, bx, y0, bz, nx, 0, nz, color);
+  }
+
   /** Builds a new BufferGeometry from the accumulated triangles. */
   toGeometry(): BufferGeometry {
     const geometry = new BufferGeometry();
