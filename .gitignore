@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.local
+.env
+.env.*
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# Local agent/planning docs
+CLAUDE.md
+plan.md
