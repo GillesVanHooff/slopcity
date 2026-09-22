@@ -19,7 +19,8 @@ import type { World } from '../../sim/world';
 
 /** Inset keeps the outline inside the tile so adjacent highlights never overlap. */
 const INSET = 0.04;
-const LIFT = 0.01;
+/** Above sidewalk height so the highlight stays visible over roads. */
+const LIFT = 0.07;
 
 export class TileHighlight {
   readonly object = new Group();

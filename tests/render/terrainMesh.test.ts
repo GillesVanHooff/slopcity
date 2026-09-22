@@ -13,7 +13,7 @@ describe('TerrainMesh', () => {
   const terrain = new TerrainMesh(world);
 
   it('draws the 256² map in a small number of blocks', () => {
-    const expected = (256 / RENDER.terrainBlockSize) ** 2;
+    const expected = (256 / RENDER.renderBlockSize) ** 2;
     expect(terrain.blockCount).toBe(expected);
     expect(blockMeshes(terrain)).toHaveLength(expected);
     expect(terrain.group.getObjectByName('terrain-skirt')).toBeDefined();
@@ -23,7 +23,7 @@ describe('TerrainMesh', () => {
     const geo: BufferGeometry = blockMeshes(terrain)[0].geometry;
     const pos = geo.getAttribute('position');
     const nor = geo.getAttribute('normal');
-    const tiles = RENDER.terrainBlockSize ** 2;
+    const tiles = RENDER.renderBlockSize ** 2;
     expect(pos.count).toBe(tiles * 6);
     expect(geo.getAttribute('color').count).toBe(tiles * 6);
 
@@ -67,10 +67,10 @@ describe('TerrainMesh', () => {
 
     const changed = after.map((g, i) => g !== before[i]).filter(Boolean).length;
     expect(changed).toBe(1);
-    const blocksPerRow = 256 / RENDER.terrainBlockSize;
+    const blocksPerRow = 256 / RENDER.renderBlockSize;
     const block =
-      Math.floor(40 / RENDER.terrainBlockSize) * blocksPerRow +
-      Math.floor(50 / RENDER.terrainBlockSize);
+      Math.floor(40 / RENDER.renderBlockSize) * blocksPerRow +
+      Math.floor(50 / RENDER.renderBlockSize);
     expect(after[block].boundingBox!.max.y).toBeCloseTo(2);
     world.height[40 * world.cornerStride + 50] = 0;
   });

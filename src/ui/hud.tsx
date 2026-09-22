@@ -6,6 +6,7 @@
 
 import { render, type ComponentChildren } from 'preact';
 import { TIME_OF_DAY } from '../config';
+import type { ToolId } from '../input/tools/tool';
 import { formatTimeOfDay } from './format';
 import { fallbackKeyLabel } from './keyLabels';
 import { hud } from './state';
@@ -15,6 +16,7 @@ export interface HudActions {
   toggleGrid(): void;
   toggleHelp(): void;
   setTimeOfDay(hours: number): void;
+  setTool(id: ToolId): void;
 }
 
 function key(code: string): string {
@@ -47,6 +49,79 @@ function Compass({ onClick }: { onClick(): void }) {
         </g>
       </svg>
     </button>
+  );
+}
+
+const TOOLS: { id: ToolId; label: string; code: string; icon: ComponentChildren }[] = [
+  {
+    id: 'select',
+    label: 'Select',
+    code: 'Escape',
+    icon: <path d="M6 3 L6 18 L10 14 L13 20.5 L15.5 19.3 L12.6 13 L18 13 Z" />,
+  },
+  {
+    id: 'road',
+    label: 'Street',
+    code: 'KeyR',
+    icon: (
+      <>
+        <path d="M8 3 L4 21 M16 3 L20 21" />
+        <path d="M12 4 L12 7 M12 10.5 L12 13.5 M12 17 L12 20" class="tool-icon-accent" />
+      </>
+    ),
+  },
+  {
+    id: 'bulldoze',
+    label: 'Bulldoze',
+    code: 'KeyB',
+    icon: (
+      <>
+        <path d="M3 8 L3 17 L5 17" />
+        <rect x="7" y="10" width="11" height="5" rx="1" />
+        <rect x="10" y="5.5" width="5" height="4.5" />
+        <circle cx="9.5" cy="18" r="1.8" />
+        <circle cx="15.5" cy="18" r="1.8" />
+      </>
+    ),
+  },
+];
+
+function Toolbar({ actions }: { actions: HudActions }) {
+  const active = hud.activeTool.value;
+  return (
+    <nav class="panel toolbar" aria-label="Tools">
+      {TOOLS.map((t) => {
+        const hotkey = t.code === 'Escape' ? 'Esc' : key(t.code);
+        return (
+          <button
+            key={t.id}
+            type="button"
+            class={`tool-button ${active === t.id ? 'is-active' : ''}`}
+            aria-pressed={active === t.id}
+            title={`${t.label} (${hotkey})`}
+            onClick={() => actions.setTool(t.id)}
+          >
+            <svg class="tool-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              {t.icon}
+            </svg>
+            <span class="tool-label">{t.label}</span>
+            <Kbd>{hotkey}</Kbd>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** Small label that follows the cursor while a tool is dragging. */
+function CursorHint() {
+  const text = hud.cursorHint.value;
+  if (!text) return null;
+  const { x, y } = hud.pointer.value;
+  return (
+    <div class="cursor-hint" style={{ transform: `translate(${x + 18}px, ${y + 18}px)` }}>
+      {text}
+    </div>
   );
 }
 
@@ -160,6 +235,18 @@ function Help({ actions }: { actions: HudActions }) {
         <Kbd>{key('BracketRight')}</Kbd> · slider
       </>,
     ],
+    [
+      'Build / clear',
+      <>
+        <Kbd>{key('KeyR')}</Kbd> street · <Kbd>{key('KeyB')}</Kbd> bulldoze
+      </>,
+    ],
+    [
+      'Cancel',
+      <>
+        <Kbd>Esc</Kbd> · right-click
+      </>,
+    ],
     ['Grid', <Kbd>{key('KeyG')}</Kbd>],
     ['Hide help', <Kbd>{key('KeyH')}</Kbd>],
   ];
@@ -182,9 +269,12 @@ function Hud({ actions }: { actions: HudActions }) {
   return (
     <div class="hud">
       <header class="hud-top">
-        <div class="panel brand">
-          <span class="brand-name">SlopCity</span>
-          <span class="brand-tag">pre-alpha</span>
+        <div class="hud-top-left">
+          <div class="panel brand">
+            <span class="brand-name">SlopCity</span>
+            <span class="brand-tag">pre-alpha</span>
+          </div>
+          <Toolbar actions={actions} />
         </div>
         <div class="hud-top-right">
           <Stats />
@@ -209,6 +299,7 @@ function Hud({ actions }: { actions: HudActions }) {
         <TimeOfDay actions={actions} />
         <div class="hud-bottom-right" />
       </footer>
+      <CursorHint />
     </div>
   );
 }

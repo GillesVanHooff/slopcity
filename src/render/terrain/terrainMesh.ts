@@ -1,5 +1,5 @@
 /**
- * Terrain renderer. The map is drawn as square blocks (RENDER.terrainBlockSize tiles per
+ * Terrain renderer. The map is drawn as square blocks (RENDER.renderBlockSize tiles per
  * side), each one non-indexed, flat-shaded BufferGeometry built from the world's corner
  * heightmap. Blocks are frustum-culled individually and rebuilt individually when the
  * sim reports a dirty chunk (phase 4 terraforming). Blocks are larger than sim chunks to
@@ -17,10 +17,10 @@ import {
   Vector3,
 } from 'three';
 import { COLORS, RENDER } from '../../config';
-import { Grid } from '../../core/grid';
 import { fbm2 } from '../../core/noise';
 import { hash2Float } from '../../core/rng';
 import type { World } from '../../sim/world';
+import { RenderBlocks } from '../blocks';
 import { createTerrainMaterial, type TerrainMaterial } from './terrainMaterial';
 
 const VERTS_PER_TILE = 6;
@@ -42,8 +42,8 @@ export class TerrainMesh {
   private readonly world: World;
   private readonly terrainMaterial: TerrainMaterial;
   private readonly skirtMaterial: MeshLambertMaterial;
-  /** Block layout over the same tiles as the world grid. */
-  private readonly blocks: Grid;
+  private readonly blocks: RenderBlocks;
+  private readonly dirtyBlocks = new Set<number>();
   private readonly blockMeshes: Mesh[] = [];
   private skirt: Mesh | null = null;
   private readonly bounds = new Int32Array(4);
@@ -56,8 +56,8 @@ export class TerrainMesh {
     baseGrass.setHex(COLORS.grass);
 
     const { grid } = world;
-    this.blocks = new Grid(grid.width, grid.height, RENDER.terrainBlockSize);
-    for (let b = 0; b < this.blocks.chunkCount; b++) {
+    this.blocks = new RenderBlocks(grid, RENDER.renderBlockSize);
+    for (let b = 0; b < this.blocks.count; b++) {
       const mesh = new Mesh(new BufferGeometry(), this.terrainMaterial.material);
       mesh.name = `terrain-block-${b}`;
       mesh.receiveShadow = true;
@@ -71,25 +71,18 @@ export class TerrainMesh {
 
   /** Number of terrain draw calls (excluding the skirt). */
   get blockCount(): number {
-    return this.blocks.chunkCount;
+    return this.blocks.count;
   }
 
   /** Rebuilds the block(s) covering a sim chunk after its terrain changed. */
   rebuildChunk(chunk: number): void {
-    const { grid } = this.world;
-    grid.chunkBounds(chunk, this.bounds);
-    const [x0, z0, x1, z1] = this.bounds;
-    const first = this.blocks.chunkOf(x0, z0);
-    const last = this.blocks.chunkOf(x1 - 1, z1 - 1);
-    for (let bz = this.blocks.chunkZ(first); bz <= this.blocks.chunkZ(last); bz++) {
-      for (let bx = this.blocks.chunkX(first); bx <= this.blocks.chunkX(last); bx++) {
-        this.rebuildBlock(bz * this.blocks.chunksX + bx);
-      }
-    }
+    this.dirtyBlocks.clear();
+    this.blocks.addBlocksForChunk(chunk, this.dirtyBlocks);
+    for (const b of this.dirtyBlocks) this.rebuildBlock(b);
   }
 
   rebuildAll(): void {
-    for (let b = 0; b < this.blocks.chunkCount; b++) this.rebuildBlock(b);
+    for (let b = 0; b < this.blocks.count; b++) this.rebuildBlock(b);
     this.rebuildSkirt();
   }
 
@@ -100,7 +93,7 @@ export class TerrainMesh {
   /** Rebuilds one block's geometry from the world heightmap. */
   private rebuildBlock(b: number): void {
     const { seed } = this.world;
-    this.blocks.chunkBounds(b, this.bounds);
+    this.blocks.blockBounds(b, this.bounds);
     const [x0, z0, x1, z1] = this.bounds;
     const tileCount = (x1 - x0) * (z1 - z0);
 

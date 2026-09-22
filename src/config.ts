@@ -51,13 +51,23 @@ export const RENDER = {
   shadowMinHalfSize: 12,
   shadowMaxHalfSize: 220,
   /**
-   * Terrain is drawn in blocks of this many tiles per side (a multiple of CHUNK_SIZE).
-   * Bigger blocks mean fewer draw calls (64 for a 256² map) at the cost of rebuilding more
-   * tiles when one chunk changes.
+   * Terrain and roads are drawn in blocks of this many tiles per side (a multiple of
+   * CHUNK_SIZE). Bigger blocks mean fewer draw calls (64 per layer for a 256² map) at the
+   * cost of rebuilding more tiles when one chunk changes.
    */
-  terrainBlockSize: 32,
+  renderBlockSize: 32,
   /** Depth of the dirt "slab" drawn around the map edge. */
   mapSkirtDepth: 3,
+} as const;
+
+/** Road types and their gameplay parameters. Index = value stored in the world's road layer. */
+export const ROADS = {
+  street: {
+    id: 1,
+    name: 'Street',
+    /** Construction cost per new tile (display only until the budget exists in phase 5). */
+    costPerTile: 10,
+  },
 } as const;
 
 export const TIME_OF_DAY = {

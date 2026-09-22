@@ -20,6 +20,9 @@ export interface InputEvents {
 
 export const MouseButton = { Left: 0, Middle: 1, Right: 2 } as const;
 
+/** `PointerEvent.button` index → its bit in `PointerEvent.buttons` (middle and right swap). */
+const BUTTONS_BIT = [1, 4, 2, 8, 16];
+
 export class InputManager {
   readonly events = new Emitter<InputEvents>();
 
@@ -109,6 +112,17 @@ export class InputManager {
   private onPointerMove(e: PointerEvent): void {
     this.updatePointer(e);
     this.events.emit('pointermove', e);
+    // Chorded buttons: pressing or releasing a button while another one is held fires a
+    // pointermove (not pointerdown/up) whose `button` is the button that changed.
+    if (e.button >= 0 && e.button < BUTTONS_BIT.length) {
+      if ((e.buttons & BUTTONS_BIT[e.button]) !== 0) {
+        this.buttons |= 1 << e.button;
+        this.events.emit('pointerdown', e);
+      } else {
+        this.buttons &= ~(1 << e.button);
+        this.events.emit('pointerup', e);
+      }
+    }
   }
 
   private onPointerUp(e: PointerEvent): void {

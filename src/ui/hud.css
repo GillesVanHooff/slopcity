@@ -277,6 +277,87 @@ body {
   margin-left: 6px;
 }
 
+/* ---- tools ---- */
+.hud-top-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--hud-gap);
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+}
+
+.tool-button {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--hud-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tool-button:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.tool-button:focus-visible {
+  outline: 2px solid var(--hud-accent);
+  outline-offset: 1px;
+}
+
+.tool-button.is-active {
+  background: rgba(143, 212, 107, 0.16);
+  border-color: var(--hud-accent);
+  color: var(--hud-accent);
+}
+
+.tool-icon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool-icon .tool-icon-accent {
+  stroke: #e2b53a;
+}
+
+.tool-button .kbd {
+  margin-right: 0;
+  color: var(--hud-muted);
+}
+
+.cursor-hint {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(22, 27, 34, 0.88);
+  border: 1px solid var(--hud-border);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform;
+}
+
 /* ---- time of day ---- */
 .time-panel {
   display: flex;
@@ -334,7 +415,13 @@ body {
   }
   .hud-bottom-left,
   .hud-bottom-right,
-  .time-label {
+  .time-label,
+  .tool-label,
+  .tool-button .kbd {
     display: none;
+  }
+  .tool-button {
+    min-width: 0;
+    grid-template-columns: 22px;
   }
 }

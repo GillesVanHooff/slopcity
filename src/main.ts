@@ -9,16 +9,25 @@ import { MathUtils } from 'three';
 import { CHUNK_SIZE, DEFAULT_SEED, MAP_SIZE, TIME_OF_DAY } from './config';
 import { CameraController } from './input/cameraController';
 import { InputManager } from './input/input';
+import { BulldozeTool } from './input/tools/bulldozeTool';
+import { RoadTool } from './input/tools/roadTool';
+import { SelectTool } from './input/tools/selectTool';
+import { ToolManager } from './input/tools/toolManager';
 import { createTestProps } from './render/debug/testProps';
 import { FrameStats } from './render/frameStats';
 import { createTilePick, pickTile } from './render/picking';
+import { RoadGhost } from './render/preview/roadGhost';
 import { TileHighlight } from './render/preview/tileHighlight';
+import { TileOverlay } from './render/preview/tileOverlay';
 import { GameRenderer } from './render/renderer';
+import { RoadMesh } from './render/roads/roadMesh';
 import { TerrainMesh } from './render/terrain/terrainMesh';
+import { Simulation } from './sim/simulation';
 import { World } from './sim/world';
 import { mountHud } from './ui/hud';
 import { resolveKeyLabels } from './ui/keyLabels';
 import { hud } from './ui/state';
+import type { ToolId } from './input/tools/tool';
 
 const HOTKEY_CODES = [
   'KeyW',
@@ -29,6 +38,8 @@ const HOTKEY_CODES = [
   'KeyE',
   'KeyG',
   'KeyH',
+  'KeyR',
+  'KeyB',
   'BracketLeft',
   'BracketRight',
 ];
@@ -48,6 +59,7 @@ function main(): void {
   // ---- world (pure sim state)
   const world = new World({ size: MAP_SIZE, chunkSize: CHUNK_SIZE, seed: DEFAULT_SEED });
   const { grid } = world;
+  const sim = new Simulation(world);
 
   // ---- rendering
   const gr = new GameRenderer(requireElement('viewport'), {
@@ -56,13 +68,32 @@ function main(): void {
   });
   const terrain = new TerrainMesh(world);
   gr.scene.add(terrain.group);
+  const roads = new RoadMesh(world);
+  gr.scene.add(roads.group);
+  sim.events.on('changes', (changes) => roads.rebuildChunks(changes.dirtyChunks));
   const highlight = new TileHighlight(world);
   gr.scene.add(highlight.object);
+  const roadGhost = new RoadGhost(world);
+  const bulldozeOverlay = new TileOverlay(grid, 0xff4d3d);
+  gr.scene.add(roadGhost.object, bulldozeOverlay.object);
   if (debug) gr.scene.add(createTestProps(world).group);
 
   // ---- input
   const input = new InputManager(gr.canvas);
   const cameraController = new CameraController(input, gr.rig);
+  const showHint = (text: string | null) => {
+    if (text) hud.pointer.value = { x: input.pointerX, y: input.pointerY };
+    hud.cursorHint.value = text;
+  };
+  const tools = new ToolManager(input, gr.canvas, [
+    new SelectTool(),
+    new RoadTool(sim, roadGhost, showHint),
+    new BulldozeTool(sim, bulldozeOverlay, showHint),
+  ]);
+  tools.onToolChange = (id) => (hud.activeTool.value = id);
+  input.events.on('pointermove', () => {
+    if (hud.cursorHint.value) hud.pointer.value = { x: input.pointerX, y: input.pointerY };
+  });
 
   // ---- HUD
   const actions = {
@@ -71,10 +102,12 @@ function main(): void {
     toggleHelp: () => (hud.helpVisible.value = !hud.helpVisible.value),
     setTimeOfDay: (hours: number) =>
       (hud.timeOfDay.value = MathUtils.clamp(hours, TIME_OF_DAY.sunrise, TIME_OF_DAY.sunset)),
+    setTool: (id: ToolId) => (hud.activeTool.value = id),
   };
   mountHud(requireElement('ui'), actions);
   effect(() => terrain.setGridVisible(hud.gridVisible.value));
   effect(() => gr.setTimeOfDay(hud.timeOfDay.value));
+  effect(() => tools.setActive(hud.activeTool.value));
   void resolveKeyLabels(HOTKEY_CODES).then((labels) => (hud.keyLabels.value = labels));
 
   input.events.on('keydown', (e) => {
@@ -91,6 +124,12 @@ function main(): void {
         break;
       case 'BracketRight':
         actions.setTimeOfDay(hud.timeOfDay.value + TIME_HOTKEY_STEP);
+        break;
+      case 'KeyR':
+        actions.setTool('road');
+        break;
+      case 'KeyB':
+        actions.setTool('bulldoze');
         break;
     }
   });
@@ -114,6 +153,7 @@ function main(): void {
       highlight.setTile(pick.index, pick.x, pick.z);
       hud.hoverTile.value = pick.index < 0 ? null : { x: pick.x, z: pick.z };
     }
+    tools.update(pick);
 
     // Heading = compass bearing of the view direction (0 = north / -z, clockwise).
     const heading = MathUtils.euclideanModulo(-MathUtils.radToDeg(gr.rig.yaw), 360);
@@ -138,7 +178,7 @@ function main(): void {
 
   if (debug) {
     // Handy for poking at the scene from the devtools console.
-    Object.assign(window, { slopcity: { world, renderer: gr, terrain, input } });
+    Object.assign(window, { slopcity: { world, sim, renderer: gr, terrain, roads, input } });
   }
 }
 

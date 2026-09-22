@@ -1,8 +1,8 @@
 /**
  * Authoritative world state as flat typed-array layers (plan.md §4).
  *
- * Phase 1 only needs terrain (corner heights + surface type). Road, zone, building and
- * simulation layers are added by later phases. Pure module: no three / DOM imports.
+ * Terrain (corner heights + surface type) and roads so far. Zone, building and simulation
+ * layers are added by later phases. Pure module: no three / DOM imports.
  */
 
 import { Grid } from '../core/grid';
@@ -29,12 +29,18 @@ export class World {
   readonly height: Float32Array;
   /** Surface type per tile. */
   readonly surface: Uint8Array;
+  /** Road type per tile: 0 = none, otherwise an id from ROADS in config.ts. */
+  readonly road: Uint8Array;
+  /** Cached road connection mask per tile (N=1, E=2, S=4, W=8); see roads/autotile.ts. */
+  readonly roadMask: Uint8Array;
 
   constructor(opts: WorldOptions) {
     this.grid = new Grid(opts.size, opts.size, opts.chunkSize);
     this.seed = opts.seed >>> 0;
     this.height = new Float32Array((this.grid.width + 1) * (this.grid.height + 1));
     this.surface = new Uint8Array(this.grid.size).fill(Surface.Grass);
+    this.road = new Uint8Array(this.grid.size);
+    this.roadMask = new Uint8Array(this.grid.size);
   }
 
   /** Number of corner columns in the height layer. */

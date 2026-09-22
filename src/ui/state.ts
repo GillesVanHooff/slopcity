@@ -6,6 +6,7 @@
 
 import { signal } from '@preact/signals';
 import { TIME_OF_DAY } from '../config';
+import type { ToolId } from '../input/tools/tool';
 
 export interface HoverTile {
   x: number;
@@ -26,6 +27,11 @@ export const hud = {
   /** Time of day in hours; drives the sun. Later phases will drive it from the sim clock. */
   timeOfDay: signal<number>(TIME_OF_DAY.default),
   helpVisible: signal(true),
+  activeTool: signal<ToolId>('select'),
+  /** Text shown next to the cursor while a tool drags (length, cost); null hides it. */
+  cursorHint: signal<string | null>(null),
+  /** Pointer position over the viewport in CSS px (only consumed while a hint shows). */
+  pointer: signal({ x: 0, y: 0 }),
   /** Display labels for physical key codes on the user's keyboard layout. */
   keyLabels: signal<Record<string, string>>({}),
 };
