@@ -18,7 +18,11 @@ Build roads that join up automatically, zone land for residential, commercial an
 
 ## Getting started
 
+Requires Node.js 20.19 or newer.
+
 ```bash
 npm install
-npm run dev
+npm run dev      # start the dev server at http://localhost:5173
+npm test         # run the unit tests
+npm run build    # typecheck and build for production
 ```
