@@ -16,6 +16,8 @@ interface NavigatorKeyboard {
 export function fallbackKeyLabel(code: string): string {
   if (code.startsWith('Key')) return code.slice(3);
   if (code.startsWith('Digit')) return code.slice(5);
+  if (code === 'BracketLeft') return '[';
+  if (code === 'BracketRight') return ']';
   return code;
 }
 

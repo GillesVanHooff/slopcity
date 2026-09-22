@@ -5,13 +5,16 @@
  */
 
 import { render, type ComponentChildren } from 'preact';
-import { hud } from './state';
+import { TIME_OF_DAY } from '../config';
+import { formatTimeOfDay } from './format';
 import { fallbackKeyLabel } from './keyLabels';
+import { hud } from './state';
 
 export interface HudActions {
   resetView(): void;
   toggleGrid(): void;
   toggleHelp(): void;
+  setTimeOfDay(hours: number): void;
 }
 
 function key(code: string): string {
@@ -44,6 +47,47 @@ function Compass({ onClick }: { onClick(): void }) {
         </g>
       </svg>
     </button>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg class="time-icon" viewBox="-12 -12 24 24" width="18" height="18" aria-hidden="true">
+      <circle r="4.5" />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+        <line key={a} x1="0" y1="-7.5" x2="0" y2="-10.5" transform={`rotate(${a})`} />
+      ))}
+    </svg>
+  );
+}
+
+function TimeOfDay({ actions }: { actions: HudActions }) {
+  const hours = hud.timeOfDay.value;
+  const label = formatTimeOfDay(hours);
+  return (
+    <div class="panel time-panel">
+      <SunIcon />
+      <label class="time-label" for="time-of-day">
+        Time of day
+      </label>
+      <input
+        id="time-of-day"
+        class="time-slider"
+        type="range"
+        min={TIME_OF_DAY.sunrise}
+        max={TIME_OF_DAY.sunset}
+        step={TIME_OF_DAY.step}
+        value={hours}
+        aria-valuetext={label}
+        title={`Time of day (${key('BracketLeft')} / ${key('BracketRight')})`}
+        onInput={(e) => actions.setTimeOfDay(Number(e.currentTarget.value))}
+        // Hand keyboard focus back to the game after a mouse drag so WASD keeps working.
+        onPointerUp={(e) => e.currentTarget.blur()}
+      />
+      <output class="time-value" for="time-of-day">
+        {label}
+      </output>
+    </div>
   );
 }
 
@@ -109,6 +153,13 @@ function Help({ actions }: { actions: HudActions }) {
     ],
     ['Fast pan', <Kbd>Shift</Kbd>],
     ['Reset view', <Kbd>Home</Kbd>],
+    [
+      'Time of day',
+      <>
+        <Kbd>{key('BracketLeft')}</Kbd>
+        <Kbd>{key('BracketRight')}</Kbd> · slider
+      </>,
+    ],
     ['Grid', <Kbd>{key('KeyG')}</Kbd>],
     ['Hide help', <Kbd>{key('KeyH')}</Kbd>],
   ];
@@ -152,7 +203,11 @@ function Hud({ actions }: { actions: HudActions }) {
         </div>
       </header>
       <footer class="hud-bottom">
-        <Help actions={actions} />
+        <div class="hud-bottom-left">
+          <Help actions={actions} />
+        </div>
+        <TimeOfDay actions={actions} />
+        <div class="hud-bottom-right" />
       </footer>
     </div>
   );

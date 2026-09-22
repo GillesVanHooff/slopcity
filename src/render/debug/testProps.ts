@@ -4,16 +4,10 @@
  * exists. Not part of the game world; never touches sim state.
  */
 
-import {
-  BoxGeometry,
-  ConeGeometry,
-  CylinderGeometry,
-  Group,
-  Mesh,
-  MeshLambertMaterial,
-} from 'three';
+import { BoxGeometry, ConeGeometry, CylinderGeometry, Group, Mesh } from 'three';
 import { Rng } from '../../core/rng';
 import type { World } from '../../sim/world';
+import { createLowPolyMaterial } from '../materials';
 
 export function createTestProps(world: World): { group: Group; dispose(): void } {
   const group = new Group();
@@ -29,11 +23,9 @@ export function createTestProps(world: World): { group: Group; dispose(): void }
   const crown = new ConeGeometry(0.32, 0.9, 7);
   crown.translate(0, 0.75, 0);
 
-  const wall = [0xe8e2d0, 0xd9c7a8, 0xc5d0d8, 0xe3b9a0].map(
-    (c) => new MeshLambertMaterial({ color: c, flatShading: true }),
-  );
-  const bark = new MeshLambertMaterial({ color: 0x6b4a2f, flatShading: true });
-  const leaves = new MeshLambertMaterial({ color: 0x3f7a3a, flatShading: true });
+  const wall = [0xe8e2d0, 0xd9c7a8, 0xc5d0d8, 0xe3b9a0].map(createLowPolyMaterial);
+  const bark = createLowPolyMaterial(0x6b4a2f);
+  const leaves = createLowPolyMaterial(0x3f7a3a);
 
   // A small block of "buildings" on a 2-tile rhythm, leaving gaps where streets would go.
   for (let dz = -4; dz <= 4; dz += 2) {

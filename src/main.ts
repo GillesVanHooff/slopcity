@@ -6,7 +6,7 @@
 import './ui/hud.css';
 import { effect } from '@preact/signals';
 import { MathUtils } from 'three';
-import { CHUNK_SIZE, DEFAULT_SEED, MAP_SIZE } from './config';
+import { CHUNK_SIZE, DEFAULT_SEED, MAP_SIZE, TIME_OF_DAY } from './config';
 import { CameraController } from './input/cameraController';
 import { InputManager } from './input/input';
 import { createTestProps } from './render/debug/testProps';
@@ -20,7 +20,20 @@ import { mountHud } from './ui/hud';
 import { resolveKeyLabels } from './ui/keyLabels';
 import { hud } from './ui/state';
 
-const HOTKEY_CODES = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyG', 'KeyH'];
+const HOTKEY_CODES = [
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  'KeyQ',
+  'KeyE',
+  'KeyG',
+  'KeyH',
+  'BracketLeft',
+  'BracketRight',
+];
+/** Hours moved per press of the time-of-day hotkeys. */
+const TIME_HOTKEY_STEP = 0.5;
 
 function requireElement(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -56,15 +69,30 @@ function main(): void {
     resetView: () => gr.rig.reset(),
     toggleGrid: () => (hud.gridVisible.value = !hud.gridVisible.value),
     toggleHelp: () => (hud.helpVisible.value = !hud.helpVisible.value),
+    setTimeOfDay: (hours: number) =>
+      (hud.timeOfDay.value = MathUtils.clamp(hours, TIME_OF_DAY.sunrise, TIME_OF_DAY.sunset)),
   };
   mountHud(requireElement('ui'), actions);
   effect(() => terrain.setGridVisible(hud.gridVisible.value));
+  effect(() => gr.setTimeOfDay(hud.timeOfDay.value));
   void resolveKeyLabels(HOTKEY_CODES).then((labels) => (hud.keyLabels.value = labels));
 
   input.events.on('keydown', (e) => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.code === 'KeyG') actions.toggleGrid();
-    else if (e.code === 'KeyH') actions.toggleHelp();
+    switch (e.code) {
+      case 'KeyG':
+        actions.toggleGrid();
+        break;
+      case 'KeyH':
+        actions.toggleHelp();
+        break;
+      case 'BracketLeft':
+        actions.setTimeOfDay(hud.timeOfDay.value - TIME_HOTKEY_STEP);
+        break;
+      case 'BracketRight':
+        actions.setTimeOfDay(hud.timeOfDay.value + TIME_HOTKEY_STEP);
+        break;
+    }
   });
 
   // ---- frame loop

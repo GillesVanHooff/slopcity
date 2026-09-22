@@ -5,6 +5,7 @@
  */
 
 import { signal } from '@preact/signals';
+import { TIME_OF_DAY } from '../config';
 
 export interface HoverTile {
   x: number;
@@ -22,6 +23,8 @@ export const hud = {
   /** Camera distance in world units, for the zoom readout. */
   zoomDistance: signal(0),
   gridVisible: signal(true),
+  /** Time of day in hours; drives the sun. Later phases will drive it from the sim clock. */
+  timeOfDay: signal<number>(TIME_OF_DAY.default),
   helpVisible: signal(true),
   /** Display labels for physical key codes on the user's keyboard layout. */
   keyLabels: signal<Record<string, string>>({}),

@@ -60,6 +60,21 @@ export const RENDER = {
   mapSkirtDepth: 3,
 } as const;
 
+export const TIME_OF_DAY = {
+  /** Slider range and sun path, in hours. The sun rises in the east and sets in the west. */
+  sunrise: 6,
+  sunset: 20,
+  default: 15,
+  /** Slider step in hours (15 minutes). */
+  step: 0.25,
+  /** Sun elevation at solar noon, in degrees. */
+  maxElevation: 62,
+  /** Elevation floor so shadows never become infinitely long at sunrise/sunset. */
+  minElevation: 7,
+  /** Tallest expected shadow caster, used to size the shadow depth range. */
+  maxCasterHeight: 60,
+} as const;
+
 /** Palette used by procedural geometry and the scene. Linear-ish sRGB hex values. */
 export const COLORS = {
   sky: 0xbfd6e6,
@@ -67,6 +82,8 @@ export const COLORS = {
   dirt: 0x7a5c3e,
   hover: 0xffffff,
   sunLight: 0xfff3dd,
+  sunLightLow: 0xffa862,
+  skyLow: 0xe8cfb4,
   hemiSky: 0xdcebff,
   hemiGround: 0x5b6a3c,
 } as const;

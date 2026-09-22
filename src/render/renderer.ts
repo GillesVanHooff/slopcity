@@ -40,6 +40,7 @@ export class GameRenderer {
   private lastTime = -1;
   private onFrame: FrameCallback | null = null;
   private readonly fog: Fog;
+  private readonly skyColor = new Color();
 
   constructor(container: HTMLElement, opts: RendererOptions) {
     this.container = container;
@@ -55,17 +56,24 @@ export class GameRenderer {
     this.canvas.tabIndex = 0; // focusable, so keyboard input targets the game
     container.appendChild(this.canvas);
 
-    this.scene.background = new Color(COLORS.sky);
+    this.scene.background = this.skyColor.set(COLORS.sky);
     this.fog = new Fog(COLORS.sky, 200, 800);
     this.scene.fog = this.fog;
 
     this.rig = new CameraRig(opts.bounds);
     this.lighting = new SceneLighting(opts.shadows ?? true);
     this.scene.add(...this.lighting.objects);
+    this.applySkyColor();
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
+  }
+
+  /** Sets the time of day in hours: moves the sun and tints the sky and fog. */
+  setTimeOfDay(hours: number): void {
+    this.lighting.setTimeOfDay(hours);
+    this.applySkyColor();
   }
 
   start(onFrame: FrameCallback): void {
@@ -95,6 +103,11 @@ export class GameRenderer {
     this.lighting.follow(this.rig);
     this.updateFog();
     this.renderer.render(this.scene, this.rig.camera);
+  }
+
+  private applySkyColor(): void {
+    this.skyColor.copy(this.lighting.sunState.skyColor);
+    this.fog.color.copy(this.skyColor);
   }
 
   /** Fog scales with zoom so it only softens the far horizon, never the play area. */
