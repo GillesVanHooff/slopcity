@@ -31,8 +31,8 @@
  */
 
 import type { Color } from 'three';
-import { DIR_BIT, Dir } from '../../core/grid';
-import { curveInnerOf, isAvenue } from '../../sim/roads/avenue';
+import { DIR_BIT, Dir, oppositeDir } from '../../core/grid';
+import { curveInnerOf, isAvenue, neighborOf } from '../../sim/roads/avenue';
 import type { RoadLayers } from '../../sim/world';
 import type { GeometryBuilder } from '../procedural/geometryBuilder';
 import { appendAvenueCurvePart, appendAvenueLanes } from './avenueGeometry';
@@ -49,6 +49,7 @@ import {
   describeTileSides,
   geometryMask,
   isJunction,
+  sideKind,
 } from './roadTopology';
 
 export {
@@ -205,7 +206,7 @@ export function appendRoadTile(
   }
 
   const { sides, pads } = describeTileSides(layers, i, tileSides);
-  appendCellGrid(builder, x, z, y, sides, pads, false);
+  appendCellGrid(builder, x, z, y, sides, pads, false, joinedSides(layers, i, sides));
   for (let q = 0; q < 4; q++) {
     if (pads[q] === Pad.None) continue;
     const xs = CORNER_DX[q] ? Dir.E : Dir.W;
@@ -222,8 +223,29 @@ export function appendRoadTile(
 }
 
 /**
+ * Sides of tile i (DIR_BIT mask) where the neighbouring tile is open toward it too. Two
+ * open sides meet with the same cross-section, so platform bands continue across that
+ * edge and their end walls are hidden. An open side alone isn't enough: an isolated
+ * street tile is drawn open to the east and west with nothing there.
+ */
+function joinedSides(layers: RoadLayers, i: number, sides: readonly Side[]): number {
+  let joined = 0;
+  for (let d = 0; d < 4; d++) {
+    if (sides[d] !== Side.Open) continue;
+    const n = neighborOf(layers, i, d);
+    if (n < 0 || layers.road[n] === 0) continue;
+    if (sideKind(layers, n, oppositeDir(d as Dir)) === Side.Open) joined |= DIR_BIT[d];
+  }
+  return joined;
+}
+
+/**
  * Emits the 7×7 cell grid of tile (x, z) for the given side kinds and pads, merging
  * equal cells into rectangles. With `bandsOnly`, only the closed sides' platforms.
+ *
+ * Platform boxes only get the side walls that can be seen: toward a lower or undrawn
+ * cell, or on a tile edge not in `joined` (see joinedSides). Walls between platform
+ * cells, or into a neighbour's continuing band, sit inside the platform.
  */
 export function appendCellGrid(
   builder: GeometryBuilder,
@@ -233,7 +255,68 @@ export function appendCellGrid(
   sides: readonly Side[],
   pads: readonly Pad[],
   bandsOnly: boolean,
+  joined: number,
 ): void {
+  const rects = cellGridLayout(sides, pads, bandsOnly, joined);
+  for (let r = 0; r < rects.length; r += RECT_STRIDE) {
+    const cx = rects[r];
+    const cz = rects[r + 1];
+    emitCell(
+      builder,
+      rects[r + 4] as Surf,
+      x + EDGES[cx],
+      z + EDGES[cz],
+      x + EDGES[cx + rects[r + 2]],
+      z + EDGES[cz + rects[r + 3]],
+      y,
+      rects[r + 5],
+    );
+  }
+}
+
+/** Merged rectangles of a cell grid: cx, cz, w, h, surface, wall mask per rectangle. */
+const RECT_STRIDE = 6;
+/**
+ * Cell grid layouts by their inputs (see layoutKey). Only a few dozen combinations occur,
+ * so rebuilding a block mostly skips the 7×7 classification and merge. Filled on demand.
+ */
+const layoutCache = new Map<number, Uint8Array>();
+const rectScratch = new Uint8Array(CELLS * CELLS * RECT_STRIDE);
+
+/** Everything a cell grid depends on, packed: 2 bits per side and pad, 4 joined, 1 flag. */
+function layoutKey(
+  sides: readonly Side[],
+  pads: readonly Pad[],
+  bandsOnly: boolean,
+  joined: number,
+): number {
+  let key = bandsOnly ? 1 : 0;
+  key = (key << 4) | joined;
+  for (let d = 0; d < 4; d++) key = (key << 4) | (sides[d] << 2) | pads[d];
+  return key;
+}
+
+function cellGridLayout(
+  sides: readonly Side[],
+  pads: readonly Pad[],
+  bandsOnly: boolean,
+  joined: number,
+): Uint8Array {
+  const key = layoutKey(sides, pads, bandsOnly, joined);
+  let rects = layoutCache.get(key);
+  if (!rects) {
+    rects = computeCellGridLayout(sides, pads, bandsOnly, joined);
+    layoutCache.set(key, rects);
+  }
+  return rects;
+}
+
+function computeCellGridLayout(
+  sides: readonly Side[],
+  pads: readonly Pad[],
+  bandsOnly: boolean,
+  joined: number,
+): Uint8Array {
   let openCorner = false;
   for (let cz = 0; cz < CELLS; cz++) {
     for (let cx = 0; cx < CELLS; cx++) {
@@ -251,6 +334,7 @@ export function appendCellGrid(
   const split = openCorner;
 
   // Greedy rectangle merge: extend right, then down, over cells of the same surface.
+  let n = 0;
   used.fill(0);
   for (let cz = 0; cz < CELLS; cz++) {
     for (let cx = 0; cx < CELLS; cx++) {
@@ -273,17 +357,46 @@ export function appendCellGrid(
         used.fill(1, (cz + j) * CELLS + cx, (cz + j) * CELLS + cx + w);
       }
       if (surf === Surf.None) continue;
-      emitCell(
-        builder,
-        surf,
-        x + EDGES[cx],
-        z + EDGES[cz],
-        x + EDGES[cx + w],
-        z + EDGES[cz + h],
-        y,
-      );
+      rectScratch[n] = cx;
+      rectScratch[n + 1] = cz;
+      rectScratch[n + 2] = w;
+      rectScratch[n + 3] = h;
+      rectScratch[n + 4] = surf;
+      rectScratch[n + 5] = surf === Surf.Asphalt ? 0 : visibleWalls(cx, cz, w, h, joined);
+      n += RECT_STRIDE;
     }
   }
+  return rectScratch.slice(0, n);
+}
+
+/** True for cells drawn as raised platform (the same height as every other platform). */
+function isPlatform(surf: number): boolean {
+  return surf === Surf.Curb || surf === Surf.Verge || surf === Surf.Sidewalk;
+}
+
+/** Whether any of the `n` cells from `k`, stepping by `step`, is not platform. */
+function anyLow(k: number, n: number, step: number): boolean {
+  for (let j = 0; j < n; j++) if (!isPlatform(cells[k + j * step])) return true;
+  return false;
+}
+
+/**
+ * Wall mask (DIR_BIT layout) of the platform rectangle of w×h cells at (cx, cz): a side
+ * gets a wall when any cell next to it is lower or drawn by something else, or when it
+ * lies on a tile edge that isn't joined. The wall spans the whole side even when only
+ * part of it shows, so its corners stay shared with the top face (no T-vertices).
+ */
+function visibleWalls(cx: number, cz: number, w: number, h: number, joined: number): number {
+  let walls = 0;
+  const n = cz === 0 ? !(joined & DIR_BIT[Dir.N]) : anyLow((cz - 1) * CELLS + cx, w, 1);
+  const s = cz + h === CELLS ? !(joined & DIR_BIT[Dir.S]) : anyLow((cz + h) * CELLS + cx, w, 1);
+  const west = cx === 0 ? !(joined & DIR_BIT[Dir.W]) : anyLow(cz * CELLS + cx - 1, h, CELLS);
+  const e = cx + w === CELLS ? !(joined & DIR_BIT[Dir.E]) : anyLow(cz * CELLS + cx + w, h, CELLS);
+  if (n) walls |= DIR_BIT[Dir.N];
+  if (e) walls |= DIR_BIT[Dir.E];
+  if (s) walls |= DIR_BIT[Dir.S];
+  if (west) walls |= DIR_BIT[Dir.W];
+  return walls;
 }
 
 function emitCell(
@@ -294,6 +407,7 @@ function emitCell(
   x1: number,
   z1: number,
   y: number,
+  walls: number,
 ): void {
   const top = y + PLATFORM_Y;
   switch (surf) {
@@ -301,16 +415,16 @@ function emitCell(
       builder.quadUp(x0, z0, x1, z1, y + ROAD_STYLE.asphaltY, ROAD_COLORS.asphalt);
       break;
     case Surf.Curb:
-      builder.box(x0, z0, x1, z1, y, top, ROAD_COLORS.curb);
+      builder.box(x0, z0, x1, z1, y, top, ROAD_COLORS.curb, 0, walls);
       break;
     case Surf.Verge:
-      builder.box(x0, z0, x1, z1, y, top, ROAD_COLORS.verge, ROAD_SURFACE.Verge);
+      builder.box(x0, z0, x1, z1, y, top, ROAD_COLORS.verge, ROAD_SURFACE.Verge, walls);
       break;
     case Surf.Sidewalk: {
       // Slabs run along the longer side of the rectangle (the sidewalk's direction).
       const alongX = x1 - x0 >= z1 - z0;
       const id = alongX ? ROAD_SURFACE.SidewalkAlongX : ROAD_SURFACE.SidewalkAlongZ;
-      builder.box(x0, z0, x1, z1, y, top, ROAD_COLORS.sidewalk, id);
+      builder.box(x0, z0, x1, z1, y, top, ROAD_COLORS.sidewalk, id, walls);
       break;
     }
   }

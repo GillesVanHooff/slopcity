@@ -308,9 +308,11 @@ describe('appendRoadTile', () => {
   });
 
   it('merges cells: a straight road is 7 surfaces + 2 lines', () => {
-    // 6 platform boxes (sidewalk, verge, curb per side; top + 4 sides = 10 tris each),
-    // 1 asphalt quad and 2 centre lines.
-    expect(build(E | W).getAttribute('position').count / 3).toBe(6 * 10 + 2 + 2 * 2);
+    // 6 platform boxes (sidewalk, verge, curb per side), 1 asphalt quad and 2 centre
+    // lines. Boxes keep only the walls that can show: the sidewalk's outer wall and the
+    // curb's face toward the asphalt (2 tris each); the rest is inside the platform or
+    // continues into the neighbouring tiles.
+    expect(build(E | W).getAttribute('position').count / 3).toBe(6 * 2 + 2 * 2 * 2 + 2 + 2 * 2);
   });
 
   it('tags sidewalk tops with their running direction and verge tops as grass', () => {

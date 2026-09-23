@@ -171,7 +171,8 @@ export function appendAvenueCurvePart(
   dashes(builder, cx, cz, q, 0.5, mark, laneLine);
   dashes(builder, cx, cz, q, 1.5, mark, laneLine);
 
-  if (capped) appendCellGrid(builder, x, z, y, capSides, NO_PADS, true);
+  // The cap's band ends meet curve pieces, so keep every edge wall (nothing joined).
+  if (capped) appendCellGrid(builder, x, z, y, capSides, NO_PADS, true, 0);
 }
 
 // Scratch polygons for clipping (up to 4 + 4 clip planes vertices, x/z interleaved).
