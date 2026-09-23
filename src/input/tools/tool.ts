@@ -6,7 +6,15 @@
 
 import type { TilePick } from '../../render/picking';
 
-export type ToolId = 'select' | 'road' | 'bulldoze';
+export type ToolId = 'select' | 'road' | 'avenue' | 'bulldoze';
+
+/** A rectangle of tiles to highlight under the cursor instead of the single hovered tile. */
+export interface HoverArea {
+  x: number;
+  z: number;
+  w: number;
+  h: number;
+}
 
 export interface Tool {
   readonly id: ToolId;
@@ -23,6 +31,11 @@ export interface Tool {
   hover(pick: TilePick): void;
   /** Cancels a drag in progress. Returns true if there was one. */
   cancel(): boolean;
+  /**
+   * Optional: the tiles to highlight for this pick (written into `out`), when the tool
+   * works on more than the hovered tile. Returns false to highlight just that tile.
+   */
+  hoverArea?(pick: TilePick, out: HoverArea): boolean;
 }
 
 /** Text shown next to the cursor (cost, size) while a tool is dragging. */

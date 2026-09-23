@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { BufferGeometry } from 'three';
-import { GeometryBuilder } from '../../src/render/procedural/geometryBuilder';
 import {
   Corner,
   ROAD_COLORS,
   ROAD_STYLE,
   ROAD_SURFACE,
   Surf,
-  appendRoadTile,
   cellSurface,
   curveCorner,
   geometryMask,
 } from '../../src/render/roads/roadGeometry';
+import { streetTileGeometry } from './roadFixtures';
 
 const N = 1;
 const E = 2;
@@ -24,9 +23,7 @@ const row = (cz: number, mask: number) =>
   [0, 1, 2, 3, 4, 5, 6].map((cx) => cellSurface(cx, cz, mask));
 
 function build(mask: number, x = 0, z = 0): BufferGeometry {
-  const b = new GeometryBuilder();
-  appendRoadTile(b, x, z, mask, 0);
-  return b.toGeometry();
+  return streetTileGeometry(mask, x, z);
 }
 
 /** Area of upward-facing surface covering the tile at the topmost height per point. */
@@ -311,11 +308,9 @@ describe('appendRoadTile', () => {
   });
 
   it('merges cells: a straight road is 7 surfaces + 2 lines', () => {
-    const b = new GeometryBuilder();
-    appendRoadTile(b, 0, 0, E | W, 0);
     // 6 platform boxes (sidewalk, verge, curb per side; top + 4 sides = 10 tris each),
     // 1 asphalt quad and 2 centre lines.
-    expect(b.vertexCount / 3).toBe(6 * 10 + 2 + 2 * 2);
+    expect(build(E | W).getAttribute('position').count / 3).toBe(6 * 10 + 2 + 2 * 2);
   });
 
   it('tags sidewalk tops with their running direction and verge tops as grass', () => {

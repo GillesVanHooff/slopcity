@@ -75,8 +75,17 @@ export class TileHighlight {
       this.object.visible = false;
       return;
     }
+    this.setArea(x, z, 1, 1);
+  }
+
+  /** Shows the highlight over the w×h tiles starting at tile (x, z). */
+  setArea(x: number, z: number, w: number, h: number): void {
+    const { grid } = this.world;
+    const hx = Math.min(grid.width - 1, Math.max(0, x));
+    const hz = Math.min(grid.height - 1, Math.max(0, z));
     this.object.visible = true;
-    this.object.position.set(x, this.world.tileHeight(x, z) + LIFT, z);
+    this.object.position.set(x, this.world.tileHeight(hx, hz) + LIFT, z);
+    this.object.scale.set(w, 1, h);
   }
 
   dispose(): void {

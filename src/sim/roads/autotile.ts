@@ -5,10 +5,10 @@
  */
 
 import { DIR_BIT, DIR_DX, DIR_DZ } from '../../core/grid';
-import type { World } from '../world';
+import type { RoadLayers } from '../world';
 
 /** Computes the connection mask of tile `i` from the road layer (0 for non-road tiles). */
-export function computeRoadMask(world: World, i: number): number {
+export function computeRoadMask(world: RoadLayers, i: number): number {
   const { grid, road } = world;
   if (road[i] === 0) return 0;
   const x = grid.x(i);
@@ -26,7 +26,7 @@ export function computeRoadMask(world: World, i: number): number {
  * every tile whose mask was recomputed (so callers can mark render chunks dirty).
  */
 export function updateRoadMasks(
-  world: World,
+  world: RoadLayers,
   tiles: readonly number[],
   touched: (i: number) => void,
 ): void {

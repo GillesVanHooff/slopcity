@@ -6,7 +6,7 @@
 import './ui/hud.css';
 import { effect } from '@preact/signals';
 import { MathUtils } from 'three';
-import { CHUNK_SIZE, DEFAULT_SEED, MAP_SIZE, TIME_OF_DAY } from './config';
+import { CHUNK_SIZE, DEFAULT_SEED, MAP_SIZE, ROADS, TIME_OF_DAY } from './config';
 import { CameraController } from './input/cameraController';
 import { InputManager } from './input/input';
 import { BulldozeTool } from './input/tools/bulldozeTool';
@@ -39,6 +39,7 @@ const HOTKEY_CODES = [
   'KeyG',
   'KeyH',
   'KeyR',
+  'KeyV',
   'KeyB',
   'BracketLeft',
   'BracketRight',
@@ -87,7 +88,8 @@ function main(): void {
   };
   const tools = new ToolManager(input, gr.canvas, [
     new SelectTool(),
-    new RoadTool(sim, roadGhost, showHint),
+    new RoadTool('road', ROADS.street, sim, roadGhost, showHint),
+    new RoadTool('avenue', ROADS.avenue, sim, roadGhost, showHint),
     new BulldozeTool(sim, bulldozeOverlay, showHint),
   ]);
   tools.onToolChange = (id) => (hud.activeTool.value = id);
@@ -128,6 +130,9 @@ function main(): void {
       case 'KeyR':
         actions.setTool('road');
         break;
+      case 'KeyV':
+        actions.setTool('avenue');
+        break;
       case 'KeyB':
         actions.setTool('bulldoze');
         break;
@@ -138,6 +143,8 @@ function main(): void {
   const pick = createTilePick();
   const stats = new FrameStats();
   let lastHover = -2;
+  const hoverArea = { x: 0, z: 0, w: 1, h: 1 };
+  let areaShown = false;
   let lastHeading = Number.NaN;
   let lastZoom = Number.NaN;
 
@@ -148,9 +155,16 @@ function main(): void {
     // Picking runs every frame because the camera can move under a still cursor.
     if (input.pointerInside) pickTile(gr.rig, grid, input.ndcX, input.ndcY, pick);
     else pick.index = -1;
+    // Tools may highlight more than the hovered tile (the avenue tool: 2×2 around a corner).
+    if (pick.index >= 0 && tools.hoverArea(pick, hoverArea)) {
+      highlight.setArea(hoverArea.x, hoverArea.z, hoverArea.w, hoverArea.h);
+      areaShown = true;
+    } else if (pick.index !== lastHover || areaShown) {
+      highlight.setTile(pick.index, pick.x, pick.z);
+      areaShown = false;
+    }
     if (pick.index !== lastHover) {
       lastHover = pick.index;
-      highlight.setTile(pick.index, pick.x, pick.z);
       hud.hoverTile.value = pick.index < 0 ? null : { x: pick.x, z: pick.z };
     }
     tools.update(pick);

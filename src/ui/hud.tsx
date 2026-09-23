@@ -71,6 +71,18 @@ const TOOLS: { id: ToolId; label: string; code: string; icon: ComponentChildren 
     ),
   },
   {
+    id: 'avenue',
+    label: 'Avenue',
+    code: 'KeyV',
+    icon: (
+      <>
+        <path d="M6 3 L2 21 M18 3 L22 21 M11 3 L10.5 21 M13 3 L13.5 21" />
+        <path d="M7.5 5 L7.2 8 M7 11.5 L6.6 14.5 M6.4 18 L6.1 21" class="tool-icon-accent" />
+        <path d="M16.5 5 L16.8 8 M17 11.5 L17.4 14.5 M17.6 18 L17.9 21" class="tool-icon-accent" />
+      </>
+    ),
+  },
+  {
     id: 'bulldoze',
     label: 'Bulldoze',
     code: 'KeyB',
@@ -238,7 +250,8 @@ function Help({ actions }: { actions: HudActions }) {
     [
       'Build / clear',
       <>
-        <Kbd>{key('KeyR')}</Kbd> street · <Kbd>{key('KeyB')}</Kbd> bulldoze
+        <Kbd>{key('KeyR')}</Kbd> street · <Kbd>{key('KeyV')}</Kbd> avenue · <Kbd>{key('KeyB')}</Kbd>{' '}
+        bulldoze
       </>,
     ],
     [

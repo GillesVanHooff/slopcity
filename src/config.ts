@@ -60,13 +60,24 @@ export const RENDER = {
   mapSkirtDepth: 3,
 } as const;
 
-/** Road types and their gameplay parameters. Index = value stored in the world's road layer. */
+/**
+ * Road types and their gameplay parameters. `id` is the value stored in the world's road
+ * layer. `width` is in tiles: a 2-wide road (avenue) is dragged along the grid line
+ * between its two halves, with its median on that line.
+ */
 export const ROADS = {
   street: {
     id: 1,
     name: 'Street',
+    width: 1,
     /** Construction cost per new tile (display only until the budget exists in phase 5). */
     costPerTile: 10,
+  },
+  avenue: {
+    id: 2,
+    name: 'Avenue',
+    width: 2,
+    costPerTile: 25,
   },
 } as const;
 

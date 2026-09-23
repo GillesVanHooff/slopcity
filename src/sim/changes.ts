@@ -25,6 +25,11 @@ export class ChangeSetBuilder {
     this.chunks.add(this.chunkOfIndex(i));
   }
 
+  /** Marks the chunk of tile i for a rebuild without reporting the tile as changed. */
+  dirty(i: number): void {
+    this.chunks.add(this.chunkOfIndex(i));
+  }
+
   get isEmpty(): boolean {
     return this.chunks.size === 0;
   }

@@ -4,7 +4,7 @@
  *
  *  - Sidewalk: long concrete slabs across the full sidewalk width, separated by thin
  *    grooves (American style), with a slight tone variation per slab. On curved
- *    sidewalks the grooves are radial, pointing at the tile corner the curve bends around.
+ *    sidewalks the grooves are radial, pointing at the point the curve bends around.
  *  - Verge: mottled grass from two octaves of value noise.
  *
  * Patterns are computed from world position, so they line up seamlessly across tiles,
@@ -12,7 +12,7 @@
  */
 
 import { MeshLambertMaterial } from 'three';
-import { ROAD_ARC_SLABS, ROAD_SURFACE } from './roadGeometry';
+import { ROAD_ARC_SLABS, ROAD_SURFACE } from './roadStyle';
 
 /** Slab length along the sidewalk in tile units (8 slabs per tile ≈ 2 m each). */
 const SLAB_LENGTH = 0.125;
@@ -83,15 +83,24 @@ export function createRoadMaterial(opts: RoadMaterialOptions = {}): MeshLambertM
               along = (alongX ? p.x : p.y) / ${SLAB_LENGTH.toFixed(4)};
               across = alongX ? p.y : p.x;
             } else {
-              // Curved sidewalk: polar coordinates around the tile corner it bends around.
+              // Curved sidewalk: polar coordinates around the point it bends around.
               float id = floor(vSurface + 0.5);
-              bool pad = id > ${(ROAD_SURFACE.SidewalkPad - 0.5).toFixed(1)};
-              float corner = id - (pad ? ${ROAD_SURFACE.SidewalkPad.toFixed(1)} : ${ROAD_SURFACE.SidewalkArc.toFixed(1)});
-              vec2 center = floor(p) + vec2(
-                corner > 0.5 && corner < 2.5 ? 1.0 : 0.0,
-                corner > 1.5 ? 1.0 : 0.0);
+              vec2 center;
+              float slabs;
+              if (id > ${(ROAD_SURFACE.SidewalkAvenueArc - 0.5).toFixed(1)}) {
+                // Avenue curve: the centre's offset from the tile origin is in the id.
+                float k = id - ${ROAD_SURFACE.SidewalkAvenueArc.toFixed(1)};
+                center = floor(p) + vec2(mod(k, 4.0), floor(k / 4.0)) - 1.0;
+                slabs = ${ROAD_ARC_SLABS.avenue.toFixed(1)};
+              } else {
+                bool pad = id > ${(ROAD_SURFACE.SidewalkPad - 0.5).toFixed(1)};
+                float corner = id - (pad ? ${ROAD_SURFACE.SidewalkPad.toFixed(1)} : ${ROAD_SURFACE.SidewalkArc.toFixed(1)});
+                center = floor(p) + vec2(
+                  corner > 0.5 && corner < 2.5 ? 1.0 : 0.0,
+                  corner > 1.5 ? 1.0 : 0.0);
+                slabs = pad ? ${ROAD_ARC_SLABS.pad.toFixed(1)} : ${ROAD_ARC_SLABS.arc.toFixed(1)};
+              }
               vec2 d = abs(p - center);
-              float slabs = pad ? ${ROAD_ARC_SLABS.pad.toFixed(1)} : ${ROAD_ARC_SLABS.arc.toFixed(1)};
               along = atan(d.y, d.x) * slabs / ${(Math.PI / 2).toFixed(6)};
               across = length(d);
             }
@@ -115,6 +124,6 @@ export function createRoadMaterial(opts: RoadMaterialOptions = {}): MeshLambertM
         }`,
       );
   };
-  material.customProgramCacheKey = () => 'slopcity-road-v2';
+  material.customProgramCacheKey = () => 'slopcity-road-v3';
   return material;
 }

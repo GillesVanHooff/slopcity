@@ -17,6 +17,10 @@ export type Command =
       type: 'buildRoad';
       /** Road type id (see ROADS in config.ts). */
       roadType: number;
+      /**
+       * Start and end of the drag: tiles for 1-wide roads (streets), tile corners
+       * (0..size) for 2-wide ones (avenues), whose median runs along the grid lines.
+       */
       from: TileCoord;
       to: TileCoord;
       /**

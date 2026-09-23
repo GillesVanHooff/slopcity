@@ -45,7 +45,7 @@ export class RoadMesh {
   }
 
   private rebuildBlock(b: number): void {
-    const { grid, road, roadMask } = this.world;
+    const { grid, road } = this.world;
     this.blocks.blockBounds(b, this.bounds);
     const [x0, z0, x1, z1] = this.bounds;
 
@@ -54,7 +54,7 @@ export class RoadMesh {
       for (let x = x0; x < x1; x++) {
         const i = grid.index(x, z);
         if (road[i] === 0) continue;
-        appendRoadTile(this.builder, x, z, roadMask[i], this.world.tileHeight(x, z));
+        appendRoadTile(this.builder, this.world, x, z, this.world.tileHeight(x, z));
       }
     }
 

@@ -4,12 +4,16 @@
  * into a Web Worker behind the same interface.
  */
 
-import { ROADS } from '../config';
 import { Emitter } from '../core/events';
 import { ChangeSetBuilder, type ChangeSet } from './changes';
 import type { Command, CommandResult } from './commands';
-import { updateRoadMasks } from './roads/autotile';
-import { planRoad } from './roads/roadPath';
+import {
+  applyRoadBuild,
+  clearRoads,
+  collectBulldoze,
+  createRoadBuildPlan,
+  planRoadBuild,
+} from './roads/build';
 import type { World } from './world';
 
 export interface SimEvents {
@@ -17,15 +21,19 @@ export interface SimEvents {
   changes: ChangeSet;
 }
 
-const ROAD_COST_BY_ID = new Map<number, number>(
-  Object.values(ROADS).map((r) => [r.id, r.costPerTile]),
-);
+/**
+ * How far (in tiles) a road change can affect how other road tiles look: an avenue
+ * tile's piece depends on its neighbours' median partners and connections, so a change
+ * reaches up to three tiles away. Chunks within this radius are marked dirty.
+ */
+const ROAD_INFLUENCE_RADIUS = 3;
 
 export class Simulation {
   readonly world: World;
   readonly events = new Emitter<SimEvents>();
 
-  private readonly scratchPath: number[] = [];
+  private readonly plan = createRoadBuildPlan();
+  private readonly bulldozeSet = new Set<number>();
 
   constructor(world: World) {
     this.world = world;
@@ -53,31 +61,15 @@ export class Simulation {
     cmd: Extract<Command, { type: 'buildRoad' }>,
     changes: ChangeSetBuilder,
   ): Omit<CommandResult, 'changes'> {
-    const costPerTile = ROAD_COST_BY_ID.get(cmd.roadType);
-    if (costPerTile === undefined) {
-      return { ok: false, reason: `Unknown road type ${cmd.roadType}`, tilesChanged: 0, cost: 0 };
-    }
     const { world } = this;
-    const path = planRoad(
-      world.grid,
-      cmd.from.x,
-      cmd.from.z,
-      cmd.to.x,
-      cmd.to.z,
-      cmd.xFirst ?? true,
-      this.scratchPath,
-    );
-    const placed: number[] = [];
-    for (const i of path) {
-      if (world.road[i] === cmd.roadType) continue;
-      world.road[i] = cmd.roadType;
-      placed.push(i);
+    const plan = planRoadBuild(world, cmd, this.plan);
+    if (!plan.valid) {
+      return { ok: false, reason: plan.reason ?? 'Invalid road', tilesChanged: 0, cost: 0 };
     }
-    if (placed.length === 0) {
-      return { ok: true, tilesChanged: 0, cost: 0 };
-    }
-    updateRoadMasks(world, placed, (i) => changes.road(i));
-    return { ok: true, tilesChanged: placed.length, cost: placed.length * costPerTile };
+    if (plan.changed === 0) return { ok: true, tilesChanged: 0, cost: 0 };
+    const changed = applyRoadBuild(world, plan, (i) => changes.road(i));
+    this.markInfluence(changed, changes);
+    return { ok: true, tilesChanged: changed.length, cost: plan.cost };
   }
 
   private bulldoze(
@@ -85,13 +77,34 @@ export class Simulation {
     changes: ChangeSetBuilder,
   ): Omit<CommandResult, 'changes'> {
     const { world } = this;
-    const cleared: number[] = [];
-    world.grid.forEachInRect(cmd.from.x, cmd.from.z, cmd.to.x, cmd.to.z, (i) => {
-      if (world.road[i] === 0) return;
-      world.road[i] = 0;
-      cleared.push(i);
-    });
-    updateRoadMasks(world, cleared, (i) => changes.road(i));
+    const tiles = collectBulldoze(
+      world,
+      cmd.from.x,
+      cmd.from.z,
+      cmd.to.x,
+      cmd.to.z,
+      this.bulldozeSet,
+    );
+    const cleared = clearRoads(world, tiles, (i) => changes.road(i));
+    this.markInfluence(cleared, changes);
     return { ok: true, tilesChanged: cleared.length, cost: 0 };
+  }
+
+  /** Marks the chunks around changed road tiles whose pieces may look different now. */
+  private markInfluence(tiles: readonly number[], changes: ChangeSetBuilder): void {
+    const { grid } = this.world;
+    const r = ROAD_INFLUENCE_RADIUS;
+    for (const i of tiles) {
+      const x = grid.x(i);
+      const z = grid.z(i);
+      // Chunks are much larger than the radius: the four corners of the square cover it.
+      for (const dz of [-r, r]) {
+        for (const dx of [-r, r]) {
+          const cx = Math.min(grid.width - 1, Math.max(0, x + dx));
+          const cz = Math.min(grid.height - 1, Math.max(0, z + dz));
+          changes.dirty(grid.index(cx, cz));
+        }
+      }
+    }
   }
 }

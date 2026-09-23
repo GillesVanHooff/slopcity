@@ -15,6 +15,9 @@ export const Surface = {
 } as const;
 export type Surface = (typeof Surface)[keyof typeof Surface];
 
+/** The road layers, which road code reads and writes (a World, or a scratch copy for previews). */
+export type RoadLayers = Pick<World, 'grid' | 'road' | 'roadMask' | 'roadMedian'>;
+
 export interface WorldOptions {
   size: number;
   chunkSize: number;
@@ -33,6 +36,12 @@ export class World {
   readonly road: Uint8Array;
   /** Cached road connection mask per tile (N=1, E=2, S=4, W=8); see roads/autotile.ts. */
   readonly roadMask: Uint8Array;
+  /**
+   * Avenue tiles only: the sides (same bits as roadMask) facing the tile's median partner,
+   * the other half of the avenue. One bit on a plain avenue half; two perpendicular bits
+   * where two avenues cross or where an avenue bends (see roads/avenue.ts).
+   */
+  readonly roadMedian: Uint8Array;
 
   constructor(opts: WorldOptions) {
     this.grid = new Grid(opts.size, opts.size, opts.chunkSize);
@@ -41,6 +50,7 @@ export class World {
     this.surface = new Uint8Array(this.grid.size).fill(Surface.Grass);
     this.road = new Uint8Array(this.grid.size);
     this.roadMask = new Uint8Array(this.grid.size);
+    this.roadMedian = new Uint8Array(this.grid.size);
   }
 
   /** Number of corner columns in the height layer. */

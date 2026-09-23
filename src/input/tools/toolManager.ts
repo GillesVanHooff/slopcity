@@ -6,7 +6,7 @@
 
 import type { TilePick } from '../../render/picking';
 import { MouseButton, type InputManager } from '../input';
-import type { Tool, ToolId } from './tool';
+import type { HoverArea, Tool, ToolId } from './tool';
 
 export class ToolManager {
   private readonly tools = new Map<ToolId, Tool>();
@@ -48,6 +48,11 @@ export class ToolManager {
     this.active.activate();
     this.element.style.cursor = next.cursor;
     this.onToolChange?.(id);
+  }
+
+  /** The active tool's highlight area for this pick (see Tool.hoverArea). */
+  hoverArea(pick: TilePick, out: HoverArea): boolean {
+    return this.active.hoverArea?.(pick, out) ?? false;
   }
 
   /** Per-frame update with the tile under the cursor. */

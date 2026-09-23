@@ -1,10 +1,12 @@
 /**
  * Bulldozer: press, drag a rectangle, release to clear it. The selection is shown as a
- * faint red area with strong red markers on tiles that will actually be cleared.
+ * faint red area with strong red markers on tiles that will actually be cleared,
+ * including the rest of any avenue slice it cuts (avenues go in whole slices).
  */
 
 import type { TilePick } from '../../render/picking';
 import type { TileOverlay } from '../../render/preview/tileOverlay';
+import { collectBulldoze } from '../../sim/roads/build';
 import type { Simulation } from '../../sim/simulation';
 import type { HintSink, Tool } from './tool';
 
@@ -21,6 +23,7 @@ export class BulldozeTool implements Tool {
   private endX = 0;
   private endZ = 0;
   private readonly marked: number[] = [];
+  private readonly markedSet = new Set<number>();
 
   constructor(sim: Simulation, overlay: TileOverlay, hint: HintSink) {
     this.sim = sim;
@@ -67,10 +70,10 @@ export class BulldozeTool implements Tool {
 
   private refresh(): void {
     const { world } = this.sim;
+    // Includes the avenue tiles that go together with the selected ones.
+    collectBulldoze(world, this.startX, this.startZ, this.endX, this.endZ, this.markedSet);
     this.marked.length = 0;
-    world.grid.forEachInRect(this.startX, this.startZ, this.endX, this.endZ, (i) => {
-      if (world.road[i] !== 0) this.marked.push(i);
-    });
+    for (const i of this.markedSet) this.marked.push(i);
     this.overlay.show(this.startX, this.startZ, this.endX, this.endZ, this.marked);
     const w = Math.abs(this.endX - this.startX) + 1;
     const h = Math.abs(this.endZ - this.startZ) + 1;
